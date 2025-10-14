@@ -1,7 +1,7 @@
 import os
+import sys
 from functools import lru_cache
 from pathlib import Path
-import sys
 from typing import Literal
 
 from loguru import logger
@@ -52,7 +52,7 @@ class Settings(BaseSettings):
     ADMIN_PASSWORD: str
 
     # 文件路径配置
-    APP_DIR: Path = Path(__file__).resolve().parent.parent
+    APP_DIR: Path = Path(__file__).resolve().parent.parent.parent
     DATA_DIR: Path = APP_DIR / "data"
     ASSETS_DIR: Path = DATA_DIR / "assets"
     POSTS_DIR: Path = DATA_DIR / "posts"
@@ -63,9 +63,7 @@ class Settings(BaseSettings):
     @computed_field
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:
-        SQLITE_PREFIX = (
-            "sqlite+aiosqlite:///" if sys.platform.startswith("win") else "sqlite:////"
-        )
+        SQLITE_PREFIX = "sqlite+aiosqlite:///" if sys.platform.startswith("win") else "sqlite:////"
         return SQLITE_PREFIX + str(self.DB_PATH)
 
 
@@ -106,9 +104,7 @@ def get_settings() -> Settings:
             else:
                 invalid_vars.append(f"{field_name}: {error.get('msg', '验证失败')}")
         if missing_vars:
-            logger.error(
-                f"[!] 缺少必需环境变量 [{', '.join(missing_vars)}]，请检查 .env 文件配置"
-            )
+            logger.error(f"[!] 缺少必需环境变量 [{', '.join(missing_vars)}]，请检查 .env 文件配置")
         if invalid_vars:
             logger.error(f"[!] 环境变量值错误: {', '.join(invalid_vars)}")
         exit(1)

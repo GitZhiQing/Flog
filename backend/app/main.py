@@ -1,9 +1,7 @@
-import fastapi_cdn_host
 from fastapi import FastAPI
 from fastapi.openapi.utils import validation_error_response_definition
-from fastapi.staticfiles import StaticFiles
 
-from app.api.routes import router as api_router
+from app.api.routes import admin_api_router, api_router
 from app.core.config import get_settings
 from app.core.handlers import register_handlers
 from app.core.lifecycle import lifespan
@@ -38,8 +36,7 @@ def create_app() -> FastAPI:
         return BaseResponse.success(data=app_info)
 
     app.include_router(api_router, prefix=settings.API_PREFIX)
-    app.mount("/static", StaticFiles(directory=settings.STATIC_DIR), name="static")
-    fastapi_cdn_host.patch_docs(app)
+    app.include_router(admin_api_router, prefix=f"{settings.API_PREFIX}/admin")
     return app
 
 

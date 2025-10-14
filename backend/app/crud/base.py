@@ -5,11 +5,11 @@ from pydantic import BaseModel
 from sqlalchemy import and_, delete, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy.orm import Load
 from sqlalchemy.sql.elements import BinaryExpression
 
-from app.core.exceptions import InternalServerException, NotFoundException
 from app.core.database import Base
-from sqlalchemy.orm import Load
+from app.core.exceptions import InternalServerException, NotFoundException
 
 
 class CRUDBase[
@@ -159,9 +159,7 @@ class CRUDBase[
         result = await session.execute(stmt)
         return result.scalars().all()
 
-    async def create(
-        self, session: AsyncSession, *, obj_in: CreateSchemaType
-    ) -> ModelType:
+    async def create(self, session: AsyncSession, *, obj_in: CreateSchemaType) -> ModelType:
         """
         创建新对象
 
@@ -222,9 +220,7 @@ class CRUDBase[
             logger.error(f"Failed to delete {self.model.__name__}: {e}")
             raise InternalServerException(msg="Internal server error") from e
 
-    async def count(
-        self, session: AsyncSession, *, filters: list[BinaryExpression] = None
-    ) -> int:
+    async def count(self, session: AsyncSession, *, filters: list[BinaryExpression] = None) -> int:
         """
         统计对象数量，支持过滤条件
 

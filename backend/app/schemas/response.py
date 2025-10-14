@@ -12,15 +12,11 @@ class BaseResponse[DataType](BaseModel):
     data: DataType | None = None
 
     @staticmethod
-    def success(
-        code: int = 200, msg: str = "success", data: Any = None
-    ) -> "BaseResponse":
+    def success(code: int = 200, msg: str = "success", data: Any = None) -> "BaseResponse":
         return BaseResponse(code=code, msg=msg, data=data)
 
     @staticmethod
-    def failed(
-        code: int = 400, msg: str = "failed", data: Any = None
-    ) -> "BaseResponse":
+    def failed(code: int = 400, msg: str = "failed", data: Any = None) -> "BaseResponse":
         return BaseResponse(code=code, msg=msg, data=data)
 
     def __repr__(self) -> str:
