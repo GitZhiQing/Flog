@@ -1,13 +1,15 @@
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import DateTime, Enum, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 
+from .enums import CommentStatusEnum
+
 if TYPE_CHECKING:
-    from app.models.post import Post
+    from .post import Post
 
 
 class Comment(Base):
@@ -30,7 +32,9 @@ class Comment(Base):
     parent_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("comments.id"), nullable=True, comment="父评论 ID"
     )
-    is_hidden: Mapped[bool] = mapped_column(Boolean, default=False, comment="是否隐藏")
+    status: Mapped[CommentStatusEnum] = mapped_column(
+        Enum(CommentStatusEnum), default=CommentStatusEnum.SHOW, comment="评论状态"
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(UTC), comment="创建时间"
     )
@@ -78,9 +82,3 @@ class Comment(Base):
             all_replies.append(reply)
             all_replies.extend(reply.get_all_replies())
         return all_replies
-
-    def get_level(self) -> int:
-        """获取评论层级（0为顶级评论）"""
-        if self.parent is None:
-            return 0
-        return self.parent.get_level() + 1

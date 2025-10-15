@@ -1,10 +1,12 @@
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, Integer, String
+from sqlalchemy import DateTime, Enum, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
+
+from .enums import PostStatusEnum
 
 if TYPE_CHECKING:
     from app.models.comment import Comment
@@ -17,22 +19,33 @@ class Post(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     slug: Mapped[str] = mapped_column(
-        String(255), nullable=False, unique=True, index=True, comment="博文 slug"
+        String(255),
+        nullable=False,
+        unique=True,
+        index=True,
+        comment="博文 slug，唯一键，由文件名得到，可用于生成 URL",
     )
-    title: Mapped[str] = mapped_column(String(255), nullable=False, comment="博文标题")
-    category: Mapped[str] = mapped_column(String(50), nullable=False, comment="博文分类")
-    file_path: Mapped[str] = mapped_column(String(500), nullable=False, comment="文件路径")
-    file_hash: Mapped[str] = mapped_column(String(64), nullable=False, comment="文件哈希")
+    title: Mapped[str] = mapped_column(
+        String(255), nullable=False, comment="博文标题，文件 matadata"
+    )
+    category: Mapped[str] = mapped_column(
+        String(50), nullable=False, comment="博文分类，相对 POSTS_DIR 目录"
+    )
+    file_path: Mapped[str] = mapped_column(
+        String(500), nullable=False, comment="文件路径，相对 DATA_DIR 路径"
+    )
+    file_hash: Mapped[str] = mapped_column(String(64), nullable=False, comment="文件哈希，SHA1")
     view_count: Mapped[int] = mapped_column(Integer, default=0, comment="访问量")
-    is_hidden: Mapped[bool] = mapped_column(Boolean, default=False, comment="是否隐藏")
+    status: Mapped[PostStatusEnum] = mapped_column(
+        Enum(PostStatusEnum), default=PostStatusEnum.SHOW, comment="博文状态"
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(UTC), comment="创建时间"
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime,
         default=lambda: datetime.now(UTC),
-        onupdate=lambda: datetime.now(UTC),
-        comment="更新时间",
+        comment="更新时间，内容变化时手动触发更新",
     )
 
     # 评论关系

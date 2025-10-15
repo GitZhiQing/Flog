@@ -1,16 +1,27 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Query
+from sqlalchemy import and_, desc
 
+from app.core import exceptions
+from app.core.config import get_settings
+from app.core.file_system import get_markdown_content_and_metadata, sync_posts_to_database
 from app.crud.post import crud_post
 from app.deps import session_dep
-from app.schemas import (
-    BaseResponse,
-    PageResponse,
-    PageResult,
-    Post,
-    PostCategory,
-)
+from app.models.enums import PostStatusEnum
+from app.models.post import Post as PostModel
+from app.schemas import BaseResponse, PageResponse, PageResult, Post, PostContent, PostUpdate
 
 router = APIRouter()
+settings = get_settings()
+
+
+@router.post("/sync", response_model=BaseResponse[dict])
+async def sync_posts(session: session_dep):
+    """同步文章文件到数据库"""
+    stats = await sync_posts_to_database(session)
+    return BaseResponse.success(
+        data=stats,
+        msg=f"同步完成: 新增 {stats['added']} 篇，更新 {stats['updated']} 篇，删除 {stats['deleted']} 篇",
+    )
 
 
 @router.get("", response_model=PageResponse[Post])
@@ -18,53 +29,89 @@ async def get_posts(
     session: session_dep,
     page: int = Query(1, ge=1, description="页码"),
     size: int = Query(10, ge=1, le=100, description="每页数量"),
-    category: str | None = Query(None, description="分类过滤"),
-    search: str | None = Query(None, description="搜索关键词"),
 ):
-    """获取文章列表"""
+    """获取全部文章列表"""
     skip = (page - 1) * size
-    posts = await crud_post.get_visible_posts(
-        session, skip=skip, limit=size, category=category, search=search
+    total = await crud_post.count(session)
+    posts = await crud_post.get_multi(
+        session, skip=skip, limit=size, order_by=[desc(PostModel.created_at)]
     )
-    total = await crud_post.count_visible_posts(session, category=category, search=search)
-    data = PageResult(total=total, page=page, size=size, items=posts)
-    return PageResponse.success(data=data)
+    return PageResponse.success(
+        data=PageResult[Post](total=total, page=page, size=size, items=posts)
+    )
 
 
-@router.get("/{id}", response_model=BaseResponse[Post])
-async def get_post(id: int, session: session_dep):
-    """获取文章详情"""
-    db_post = await crud_post.get_or_404(session, id=id)
-    # 如果文章被隐藏，返回404
-    if db_post.is_hidden:
-        raise HTTPException(status_code=404, detail="文章不存在")
-    # 增加访问量
-    await crud_post.increment_view_count(session, id=id)
-    return BaseResponse.success(data=db_post)
-
-
-@router.get("/categories/list", response_model=BaseResponse[list[PostCategory]])
-async def get_categories(session: session_dep):
-    """获取所有文章分类"""
-    categories = await crud_post.get_categories(session)
-    # 统计每个分类的文章数量
-    result = []
-    for category in categories:
-        count = await crud_post.count_visible_posts(session, category=category)
-        result.append(PostCategory(category=category, count=count))
-    return BaseResponse.success(data=result)
-
-
-@router.get("/category/{category}", response_model=PageResponse[Post])
-async def get_posts_by_category(
-    category: str,
+@router.get("/status/show", response_model=PageResponse[Post])
+async def get_show_posts(
     session: session_dep,
     page: int = Query(1, ge=1, description="页码"),
     size: int = Query(10, ge=1, le=100, description="每页数量"),
 ):
-    """根据分类获取文章列表"""
+    """获取可见文章列表"""
     skip = (page - 1) * size
-    posts = await crud_post.get_by_category(session, category=category, skip=skip, limit=size)
-    total = await crud_post.count_visible_posts(session, category=category)
-    data = PageResult(total=total, page=page, size=size, items=posts)
-    return PageResponse.success(data=data)
+    filters = [PostModel.status == PostStatusEnum.SHOW]
+    total = await crud_post.count(session, filters=filters)
+    posts = await crud_post.get_multi_by_filters(
+        session, filters=filters, skip=skip, limit=size, order_by=[desc(PostModel.created_at)]
+    )
+    return PageResponse.success(
+        data=PageResult[Post](total=total, page=page, size=size, items=posts),
+        msg=f"获取 {total} 篇可见文章",
+    )
+
+
+@router.get("/status/hide", response_model=PageResponse[Post])
+async def get_hide_posts(
+    session: session_dep,
+    page: int = Query(1, ge=1, description="页码"),
+    size: int = Query(10, ge=1, le=100, description="每页数量"),
+):
+    """获取隐藏文章列表"""
+    skip = (page - 1) * size
+    filters = [PostModel.status == PostStatusEnum.HIDE]
+    total = await crud_post.count(session, filters=filters)
+    posts = await crud_post.get_multi_by_filters(
+        session, filters=filters, skip=skip, limit=size, order_by=[desc(PostModel.created_at)]
+    )
+    return PageResponse.success(
+        data=PageResult[Post](total=total, page=page, size=size, items=posts),
+        msg=f"获取 {total} 篇隐藏文章",
+    )
+
+
+@router.get("/slug/{post_slug}", response_model=BaseResponse[PostContent])
+async def get_post_by_slug(session: session_dep, slug: str):
+    """通过 slug 获取可见文章"""
+    post = await crud_post.get_by_filters(
+        session, filters=[and_(PostModel.slug == slug, PostModel.status == PostStatusEnum.SHOW)]
+    )
+    if not post:
+        raise exceptions.NotFoundException(msg="Post not found")
+    content = get_markdown_content_and_metadata(settings.DATA_DIR / post.file_path)["content"]
+    post_content = PostContent(
+        slug=post.slug,
+        title=post.title,
+        category=post.category,
+        content=content,
+    )
+    return BaseResponse.success(
+        data=post_content,
+        msg="获取文章成功",
+    )
+
+
+@router.put("/slug/{post_slug}/status/{status}", response_model=BaseResponse[Post])
+async def update_post_status(session: session_dep, post_slug: str, status: PostStatusEnum):
+    """通过 slug 更新博文状态"""
+    post = await crud_post.get_by_filters(
+        session,
+        filters=[and_(PostModel.slug == post_slug, PostModel.status == PostStatusEnum.SHOW)],
+    )
+    if not post:
+        raise exceptions.NotFoundException(msg="Post not found")
+    post_update = PostUpdate(status=status)
+    post_updated = await crud_post.update(session, id=post.id, obj_in=post_update)
+    return BaseResponse.success(
+        data=post_updated,
+        msg=f"更新文章状态为 {status.value}",
+    )

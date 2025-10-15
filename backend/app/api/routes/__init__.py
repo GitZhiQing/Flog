@@ -1,12 +1,9 @@
 from fastapi import APIRouter
 
-from . import comments, platform, posts
-from .admin import admin_api_router
+from . import categories, comments, posts
 
-api_router = APIRouter()
+router = APIRouter()
 
-api_router.include_router(posts.router, prefix="/posts", tags=["博文"])
-api_router.include_router(comments.router, prefix="/comments", tags=["评论"])
-api_router.include_router(platform.router, prefix="/platform", tags=["平台配置"])
-
-__all__ = ["api_router", "admin_api_router"]
+router.include_router(posts.router, prefix="/posts", tags=["博文"])
+router.include_router(comments.router, prefix="/comments", tags=["评论"])
+router.include_router(categories.router, prefix="/categories", tags=["分类"])
