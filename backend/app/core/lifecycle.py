@@ -84,14 +84,12 @@ async def cleanup_resources() -> None:
         logger.error(f"资源清理失败: {e}")
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncGenerator:
-    """应用生命周期管理"""
-    logger.info("应用启动中...")
-    # 启动阶段
+async def startup():
     try:
-        ensure_data_dirs()  # 1. 确保数据目录存在
-        if not await test_db_connection():  # 2. 测试数据库连接
+        # 1. 确保数据目录存在
+        ensure_data_dirs()
+        # 2. 测试数据库连接
+        if not await test_db_connection():
             raise RuntimeError("数据库连接失败，应用启动终止")
         # 3. 检查是否是第一次启动并初始化数据库
         is_first_startup = await check_first_startup()
@@ -107,17 +105,21 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
         logger.error(f"应用启动失败: {e}")
         raise
 
-    # 应用运行阶段
-    try:
-        yield
-    except Exception as e:
-        logger.error(f"应用运行时发生错误: {e}")
-        raise
 
-    # 关闭阶段
+async def shutdown():
     logger.info("应用关闭中...")
     try:
         await cleanup_resources()
         logger.info("应用关闭完成")
     except Exception as e:
         logger.error(f"应用关闭过程中发生错误: {e}")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator:
+    """应用生命周期管理"""
+    try:
+        await startup()
+        yield
+    finally:
+        await shutdown()

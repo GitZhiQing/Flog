@@ -18,7 +18,7 @@ class Settings(BaseSettings):
 
     # 应用
     NAME: str = "Seek2Game API"
-    ENV: Literal["development", "production"] = "development"
+    ENV: Literal["development", "production", "testing"] = "development"
     HOST: str = "127.0.0.1"
     PORT: int = 8080
     API_PREFIX: str = "/api"
@@ -77,6 +77,16 @@ class DevelopmentSettings(Settings):
     ENV: Literal["development"] = "development"
 
 
+class TestingSettings(Settings):
+    """测试环境配置"""
+
+    ENV: Literal["testing"] = "testing"
+
+    # 防止 pytest 将此类作为测试用例
+    # PytestCollectionWarning: cannot collect test class 'TestingSettings' because it has a __init__ constructor
+    __test__ = False
+
+
 @lru_cache
 def get_settings() -> Settings:
     """获取配置实例"""
@@ -88,6 +98,8 @@ def get_settings() -> Settings:
         logger.info(f"当前环境: {app_env}")
         if app_env == "production":
             return ProductionSettings()
+        elif app_env == "testing":
+            return TestingSettings()
         else:
             return DevelopmentSettings()
     except ValidationError as e:
