@@ -421,7 +421,7 @@ class CRUDBase[
             print(f"服务器错误: {e.message}")
         ```
         """
-        db_obj = await self.get(session, id)
+        db_obj = await self.get(session, id=id)
         if not db_obj:
             raise NotFoundException(msg=f"{self.model.__name__} with id {id} not found")
         try:

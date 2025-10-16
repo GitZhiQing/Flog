@@ -2,6 +2,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
 
+from app.models.enums import PostStatusEnum
+
 
 class PostCreate(BaseModel):
     """创建文章模型"""
@@ -17,6 +19,7 @@ class PostUpdate(BaseModel):
     """更新文章模型"""
 
     title: str | None = None
+    status: PostStatusEnum | None = None
     category: str | None = None
     file_hash: str | None = None
 

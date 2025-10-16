@@ -6,21 +6,20 @@ from app.models.enums import CommentStatusEnum
 
 
 class CommentCreate(BaseModel):
-    """创建评论模型"""
+    """评论创建模型"""
 
     content: str = Field(..., description="评论内容")
     author_name: str = Field(..., description="评论者名称")
     author_email: str | None = Field(None, description="评论者邮箱")
     author_link: str | None = Field(None, description="评论者链接")
-    post_id: int = Field(..., description="博文 ID")
-    parent_id: int | None = Field(None, description="父评论ID")
+    post_slug: str = Field(..., description="博文 slug")
+    parent_id: int | None = Field(None, description="父评论 ID")
 
 
 class CommentUpdate(BaseModel):
-    """更新评论模型"""
+    """评论更新模型"""
 
-    content: str | None = Field(None, description="评论内容")
-    status: CommentStatusEnum | None = Field(None, description="评论内容")
+    status: CommentStatusEnum | None = Field(None, description="评论状态")
 
 
 class Comment(BaseModel):
@@ -32,6 +31,6 @@ class Comment(BaseModel):
     author_name: str = Field(..., description="评论者名称")
     author_email: str | None = Field(None, description="评论者邮箱")
     author_link: str | None = Field(None, description="评论者链接")
-    is_reply: bool = Field(default=False, description="是否为回复评论")
-    created_at: datetime
-    updated_at: datetime
+    parent_id: int | None = Field(None, description="父评论 ID")
+    created_at: datetime = Field(..., description="创建时间")
+    updated_at: datetime = Field(..., description="更新时间")

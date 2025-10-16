@@ -26,10 +26,10 @@ class Post(Base):
         comment="博文 slug，唯一键，由文件名得到，可用于生成 URL",
     )
     title: Mapped[str] = mapped_column(
-        String(255), nullable=False, comment="博文标题，文件 matadata"
+        String(255), nullable=False, comment="博文标题，文件 metadata 中的 title 字段"
     )
     category: Mapped[str] = mapped_column(
-        String(50), nullable=False, comment="博文分类，相对 POSTS_DIR 目录"
+        String(50), nullable=False, comment="博文分类，相对 POSTS_DIR 目录的子目录"
     )
     file_path: Mapped[str] = mapped_column(
         String(500), nullable=False, comment="文件路径，相对 DATA_DIR 路径"
@@ -39,37 +39,17 @@ class Post(Base):
     status: Mapped[PostStatusEnum] = mapped_column(
         Enum(PostStatusEnum), default=PostStatusEnum.SHOW, comment="博文状态"
     )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(UTC), comment="创建时间"
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
     updated_at: Mapped[datetime] = mapped_column(
         DateTime,
         default=lambda: datetime.now(UTC),
-        comment="更新时间，内容变化时手动触发更新",
+        comment="更新时间，内容变化时手动触发更新，其他操作不触发",
     )
 
     # 评论关系
     comments: Mapped[list["Comment"]] = relationship(
-        "Comment", back_populates="post", cascade="all, delete-orphan"
+        "Comment", back_populates="post", cascade="all, delete-orphan", lazy="selectin"
     )
 
     def __repr__(self):
         return f"<Post(id={self.id}, title='{self.title}', category='{self.category}')>"
-
-    @property
-    def comment_count(self) -> int:
-        """获取评论总数"""
-        return len(self.comments)
-
-    @property
-    def visible_comment_count(self) -> int:
-        """获取可见评论数量"""
-        return len([c for c in self.comments if not c.is_hidden])
-
-    def get_all_comments(self) -> list["Comment"]:
-        """获取所有评论（包括回复）"""
-        all_comments = []
-        for comment in self.comments:
-            all_comments.append(comment)
-            all_comments.extend(comment.get_all_replies())
-        return all_comments
