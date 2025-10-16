@@ -60,3 +60,10 @@ class InternalServerException(BizException):
 
     def __init__(self, msg: str = "Internal server error"):
         super().__init__(code=500, msg=msg)
+
+
+class AuthenticationException(BizException):
+    """认证失败异常"""
+
+    def __init__(self, msg: str = "Authentication failed"):
+        super().__init__(code=401, msg=msg)

@@ -47,9 +47,12 @@ class Settings(BaseSettings):
     FRONTEND_URL: str = "http://localhost:5173"
 
     # 博主信息
-    ADMIN_NAME: str
-    ADMIN_EMAIL: str
-    ADMIN_PASSWORD: str
+    BLOGGER_NAME: str
+    BLOGGER_EMAIL: str
+
+    # Basic Auth 配置
+    BASIC_AUTH_USERNAME: str
+    BASIC_AUTH_PASSWORD: str
 
     # 文件路径配置
     APP_DIR: Path = Path(__file__).resolve().parent.parent.parent
