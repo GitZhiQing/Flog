@@ -151,7 +151,7 @@ async def sync_posts_to_database(session: AsyncSession) -> dict[str, int]:
 
     # 统计结果
     stats = {
-        "added": 0,
+        "created": 0,
         "updated": 0,
         "deleted": 0,
     }
@@ -192,7 +192,7 @@ async def sync_posts_to_database(session: AsyncSession) -> dict[str, int]:
                 session,
                 obj_in=post_create,
             )
-            stats["added"] += 1
+            stats["created"] += 1
 
     # 删除数据库中存在但文件系统中不存在的文章
     for db_post in db_posts_by_path.values():
