@@ -18,18 +18,13 @@ class Settings(BaseSettings):
 
     # 应用
     NAME: str = "Seek2Game API"
-    ENV: Literal["development", "testing", "production"] = "development"
+    ENV: Literal["development", "production"] = "development"
     HOST: str = "127.0.0.1"
     PORT: int = 8080
     API_PREFIX: str = "/api"
     SECRET_KEY: str  # !必须提供
     VERSION: str = "0.1.0"
-
-    @computed_field
-    @property
-    def DEBUG(self) -> bool:
-        # 开发模式下启动调试
-        return True if self.ENV == "development" else False
+    DEBUG: bool = False
 
     @computed_field
     @property

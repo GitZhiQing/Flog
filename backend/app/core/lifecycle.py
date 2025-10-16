@@ -45,16 +45,13 @@ async def check_first_startup() -> bool:
         if settings.ENV != "production":
             logger.info("检测是否首次启动: 开发环境，默认首次启动")
             return is_first_startup
-
         async with async_session_factory() as session:
             post_count = await crud_post.count(session)
             is_first_startup = post_count == 0
-
-        logger.info(f"检测是否首次启动: {'是' if is_first_startup else '否'}")
+        logger.info(f"检测是否首次启动: 生产环境，当前博客文章数量为 {post_count}")
         return is_first_startup
     except SQLAlchemyError as e:
         logger.error(f"检查首次启动状态失败: {e}")
-        # 如果查询失败，假设是首次启动
         return True
 
 
@@ -63,7 +60,6 @@ async def initialize_database(force_drop: bool = False) -> bool:
     try:
         if force_drop and settings.ENV == "production":
             raise RuntimeError("生产环境禁止强制删除数据库表")
-
         async with async_engine.begin() as conn:
             if force_drop:
                 logger.warning("强制删除数据库表")
@@ -79,31 +75,11 @@ async def initialize_database(force_drop: bool = False) -> bool:
         return False
 
 
-async def health_check() -> bool:
-    """应用健康检查"""
-    try:
-        # 检查数据库连接
-        db_healthy = await test_db_connection()
-
-        # 可以添加更多健康检查项
-        # 例如：检查外部服务、文件系统等
-
-        return db_healthy
-    except Exception as e:
-        logger.error(f"健康检查失败: {e}")
-        return False
-
-
 async def cleanup_resources() -> None:
     """清理资源"""
     try:
-        # 关闭数据库连接
-        await async_engine.dispose()
+        await async_engine.dispose()  # 关闭数据库连接
         logger.info("数据库连接已关闭")
-
-        # 可以添加其他资源清理逻辑
-        # 例如：关闭文件句柄、清理临时文件等
-
     except Exception as e:
         logger.error(f"资源清理失败: {e}")
 
@@ -112,31 +88,21 @@ async def cleanup_resources() -> None:
 async def lifespan(app: FastAPI) -> AsyncGenerator:
     """应用生命周期管理"""
     logger.info("应用启动中...")
-
     # 启动阶段
     try:
-        # 1. 确保数据目录存在
-        ensure_data_dirs()
-
-        # 2. 测试数据库连接
-        if not await test_db_connection():
+        ensure_data_dirs()  # 1. 确保数据目录存在
+        if not await test_db_connection():  # 2. 测试数据库连接
             raise RuntimeError("数据库连接失败，应用启动终止")
-
         # 3. 检查是否是第一次启动并初始化数据库
         is_first_startup = await check_first_startup()
         if is_first_startup:
             force_drop = settings.ENV != "production"
+            logger.info(f"首次启动，{'强制' if force_drop else '非强制'}删除数据库表并重建")
             if not await initialize_database(force_drop=force_drop):
                 raise RuntimeError("数据库初始化失败，应用启动终止")
         else:
             logger.info("数据库已初始化，跳过创建表")
-
-        # 4. 执行健康检查
-        if not await health_check():
-            logger.warning("健康检查未完全通过，但应用将继续启动")
-
         logger.info("应用启动完成")
-
     except Exception as e:
         logger.error(f"应用启动失败: {e}")
         raise
